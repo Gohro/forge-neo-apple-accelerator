@@ -64,3 +64,42 @@ With native Metal access, the source-only v0.1 package produced:
   fallback before/after patching.
 
 Synthetic primitive speedups are never substituted for full-generation timing.
+
+## Model coverage: Nova Comic XL V10 (SDXL)
+
+The 2026-09-03 coverage gate used Nova Comic XL V10 at 1024×1024, 10 Euler a
+steps, Normal scheduler, CFG 5, seed 12345, fresh Forge processes, an
+`off → visual-fast → visual-fast → off` order, 45-second cooldowns, and nominal
+macOS thermal state at every request boundary.
+
+The decisive route result was consistent across all sessions:
+
+- `provider.loaded_runtime_modules` remained empty;
+- `rope_pair` and `attention_core` recorded no route hits;
+- the whole-denoiser provider reported `provider_disabled` fallback;
+- the checkpoint was identified as `novaComicXL_v10` with hash `a7c35838fe`.
+
+Therefore the current add-on performs no accelerated base-generation work for
+SDXL. No SDXL speedup is claimed.
+
+Two exploratory timing matrices were rejected. In the GPU-RNG matrix,
+accelerator-off samples were `16.485s` and `18.615s`, while visual-fast samples
+were `15.308s` and `15.239s`; the visual-fast images were visibly invalid and
+the vanilla repeats were not deterministic. A CPU-RNG repeat produced off
+samples of `18.710s` and `15.289s` and visual-fast samples of `18.605s` and
+`18.878s`; three images were byte-identical but visibly invalid, while the
+fourth differed. All reported thermal states remained nominal. These timings
+are preserved as failure evidence, not performance evidence.
+
+Public summary record:
+
+- [`evidence/nova-comic-xl-v10-20260903.json`](evidence/nova-comic-xl-v10-20260903.json)
+
+Full raw artifacts on the development host:
+
+- `models/apple_mps/benchmarks/phase3-model-coverage-nova-comic-xl-v10-clean-20260903/`
+- `models/apple_mps/benchmarks/phase3-model-coverage-nova-comic-xl-v10-cpu-rng-20260903/`
+
+Product decision: v0.1 normal-generation acceleration is labeled **Anima
+only**. The SwinIR GPU compositor remains model-agnostic when an SDXL Hi-Res or
+upscale workflow actually invokes Forge's SwinIR/ESRGAN path.

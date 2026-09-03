@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Redesigned the project overview around a concise support matrix, measured
+  gains, and three-step installation flow.
+- Clarified that v0.1 normal text-to-image acceleration is Anima-only.
+- Added the Nova Comic XL V10 SDXL coverage result: no native base-generation
+  route activated, so no SDXL speedup is claimed.
+- Added `MODEL_SUPPORT.md` and documented the model-agnostic boundary of the
+  SwinIR GPU compositor.
+
 ## 0.1.0 - 2026-09-03
 
 - Added guarded stock Forge Neo Anima adapter; provider API v1 remains preferred

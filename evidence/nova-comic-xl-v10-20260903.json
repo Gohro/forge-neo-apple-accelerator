@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-03",
+  "checkpoint": {
+    "name": "novaComicXL_v10.safetensors",
+    "forge_hash": "a7c35838fe",
+    "family": "SDXL"
+  },
+  "workload": {
+    "width": 1024,
+    "height": 1024,
+    "steps": 10,
+    "sampler": "Euler a",
+    "scheduler": "Normal",
+    "cfg": 5.0,
+    "seed": 12345
+  },
+  "protocol": {
+    "process_policy": "fresh process per sample",
+    "execution_order": [
+      "off",
+      "visual-fast",
+      "visual-fast",
+      "off"
+    ],
+    "cooldown_seconds": 45,
+    "low_power_mode": false,
+    "thermal_state_at_all_request_boundaries": "nominal"
+  },
+  "route_proof": {
+    "provider_loaded_runtime_modules": [],
+    "rope_pair_hits": 0,
+    "attention_core_hits": 0,
+    "denoiser_forward": "provider_disabled_fallback",
+    "conclusion": "No accelerator base-generation route activated for SDXL."
+  },
+  "matrices": [
+    {
+      "randn_source": "GPU",
+      "off_seconds": [
+        16.485086084000613,
+        18.61503729099968
+      ],
+      "visual_fast_seconds": [
+        15.30838274999951,
+        15.239450332999695
+      ],
+      "valid_for_performance_claim": false,
+      "rejection_reason": "Visual-fast images were visibly invalid and vanilla repeats were not deterministic."
+    },
+    {
+      "randn_source": "CPU",
+      "off_seconds": [
+        18.710184542000206,
+        15.28857783300009
+      ],
+      "visual_fast_seconds": [
+        18.6048650419998,
+        18.878306333999717
+      ],
+      "valid_for_performance_claim": false,
+      "rejection_reason": "Three images were byte-identical but visibly invalid; the fourth differed."
+    }
+  ],
+  "decision": "Version 0.1 base-generation acceleration is Anima-only. No SDXL speedup is claimed."
+}
