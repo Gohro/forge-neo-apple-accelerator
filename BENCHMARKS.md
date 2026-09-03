@@ -4,7 +4,50 @@ All promoted results below were measured on the same 48 GB Apple Silicon
 development Mac. Low Power Mode was off. Promoted A/B comparisons used cooldowns
 and checked macOS thermal state at launch and request boundaries.
 
-## Normal generation
+## Default install: stable add-on versus vanilla
+
+The 2026-09-03 release matrix compared literal `off` with stable Torch 2.12.1
+`visual-fast`. It used fresh Forge processes, a one-step model-load warm-up,
+two samples per route per step count, `off → visual-fast → visual-fast → off`
+order, at least 45 seconds of cooldown, and a nominal thermal-state requirement
+before every process. The first 30-step vanilla request ended in `fair`; the
+sequence was stopped until the Mac returned to `nominal` before continuing.
+
+| Steps | Vanilla samples / median | Stable add-on samples / median | Median reduction | Speedup |
+| ---: | ---: | ---: | ---: | ---: |
+| 10 | 29.397, 37.228s / **33.313s** | 17.674, 22.237s / **19.956s** | **40.10%** | 1.67× |
+| 15 | 52.697, 42.734s / **47.715s** | 25.394, 25.275s / **25.334s** | **46.91%** | 1.88× |
+| 30 | 88.302, 83.096s / **85.699s** | 48.757, 48.744s / **48.751s** | **43.11%** | 1.76× |
+
+The checkpoint was `novaCartoonAM_v10` (`1eacc855eb`) with the Qwen image VAE
+and Qwen 3 0.6B text encoder. Every run used 1024×1024, seed 12345, GPU RNG,
+Euler a, Normal scheduler, CFG 4, and distilled CFG/shift 3. Status telemetry
+showed provider-disabled fallback for all vanilla operations and live Metal
+RoPE plus MPSGraph self/cross-attention hits for every `visual-fast` run.
+
+Prompt: `masterpiece, best quality, score_7, safe, 1girl, solo, brown hair,
+green eyes, school uniform, soft smile, looking at viewer, clean lineart,
+simple background`. Negative prompt: `worst quality, low quality, score_1,
+score_2, score_3, artist name`.
+
+Both vanilla repeats and both `visual-fast` repeats were pixel-exact within
+each step count. Vanilla versus `visual-fast` was not pixel-exact: SSIM was
+0.8149 at 10 steps, 0.7462 at 15, and 0.8634 at 30. Full-resolution review
+found both routes visually strong and closely matched in subject, face,
+linework, palette, and prompt adherence, with differences in clothing and
+small composition details. This qualifies `visual-fast`, not strict seed
+identity.
+
+The public [machine-readable evidence](evidence/anima-stable-release-matrix-20260903.json)
+contains the retained result summary. The full local raw report is
+`models/apple_mps/benchmarks/phase3-addon-release-abba-20260903/release-matrix-report.json`.
+
+The earlier July 38.47→19.74s, 55.95→28.39s, and 120.84→68.83s ladder remains
+historical development evidence. Each row had one sample and the 30-step
+baseline came from an earlier run; those values are no longer used as the
+release headline.
+
+## Optional exact-nightly versus stable add-on
 
 The optional exact-nightly runtime was compared with the already accelerated
 Forge route, not with unmodified vanilla Forge:
@@ -24,6 +67,11 @@ user's full-resolution review judged all pairs visually indistinguishable.
 The 10-step result is a cooled `Forge → nightly → nightly → Forge` ABBA median
 with 60-second cooldowns. The 15- and 30-step rows are single cooled visual
 pairs and are not multi-pair timing qualifications.
+
+These percentages cannot be added directly to the stable-versus-vanilla table.
+The combined reduction would be `1 - (stable/vanilla) × (nightly/stable)`, and
+it must use measurements from the same counterbalanced three-route campaign.
+No current combined vanilla-to-nightly number is claimed.
 
 ## Hi-Res Fix and SwinIR
 

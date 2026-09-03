@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Requalified the stable add-on against literal vanilla Forge in fresh
+  10/15/30-step ABBA runs and replaced historical single-sample headline
+  numbers with the new two-sample medians.
+- Separated default stable gains from the optional exact-nightly incremental
+  results, documented the enable/disable restart lifecycle, and stopped short
+  of a combined claim until a same-campaign three-route matrix exists.
+- Added exact-nightly install/activation and loaded-Torch status to the Settings
+  panel and status API.
 - Redesigned the project overview around a concise support matrix, measured
   gains, and three-step installation flow.
 - Clarified that v0.1 normal text-to-image acceleration is Anima-only.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import json
 import os
 import platform
 import sys
@@ -59,6 +60,52 @@ def manifest_status() -> str:
         return f"native bridge unavailable ({type(exc).__name__})"
 
 
+def exact_nightly_status() -> dict:
+    """Report install and activation state without importing a second Torch."""
+    manifest_path = EXTENSION_ROOT / "runtime_overlay_manifest.json"
+    stamp_path = EXTENSION_ROOT / "runtime_overlay" / "forge_apple_runtime.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_runtime = manifest.get("runtime_id", "unknown")
+    except Exception as exc:
+        return {
+            "installed": False,
+            "active": False,
+            "reason": f"manifest_unavailable:{type(exc).__name__}",
+        }
+    try:
+        stamp = json.loads(stamp_path.read_text(encoding="utf-8"))
+        installed = stamp.get("runtime_id") == expected_runtime
+        reason = "ready" if installed else "runtime_id_mismatch"
+    except Exception as exc:
+        installed = False
+        reason = f"stamp_unavailable:{type(exc).__name__}"
+
+    compatibility_active = os.getenv("FORGE_APPLE_ANIMA_COMPAT_BACKEND", "").strip().lower() == "torch212-exact"
+    overlay_root = (EXTENSION_ROOT / "runtime_overlay").resolve()
+    try:
+        import torch
+
+        torch_version = getattr(torch, "__long_version__", torch.__version__)
+        torch_file = Path(torch.__file__).resolve()
+        overlay_active = torch_file == overlay_root or overlay_root in torch_file.parents
+    except Exception:
+        torch_version = "unavailable"
+        torch_file = None
+        overlay_active = False
+
+    return {
+        "installed": installed,
+        "active": bool(installed and compatibility_active and overlay_active),
+        "compatibility_route_active": compatibility_active,
+        "overlay_torch_active": overlay_active,
+        "runtime_id": expected_runtime,
+        "torch_version": str(torch_version),
+        "torch_file": str(torch_file) if torch_file is not None else "",
+        "reason": reason,
+    }
+
+
 def runtime_status_payload() -> dict:
     keys = (
         "FORGE_APPLE_ACCELERATOR_MODE",
@@ -107,6 +154,7 @@ def runtime_status_payload() -> dict:
         },
         "provider": provider.status(),
         "bridge": bridge,
+        "exact_nightly": exact_nightly_status(),
     }
 
 
@@ -125,6 +173,13 @@ def on_app_started(_demo, app) -> None:
 
 
 def runtime_status_html() -> str:
+    nightly = exact_nightly_status()
+    if nightly["active"]:
+        nightly_label = f"active ({nightly['torch_version']})"
+    elif nightly["installed"]:
+        nightly_label = "installed, inactive (normal Forge launcher)"
+    else:
+        nightly_label = "not installed"
     fields = {
         "Host": f"{platform.system()} {platform.machine()}",
         "Mode": os.getenv("FORGE_APPLE_ACCELERATOR_MODE", "inherit"),
@@ -137,12 +192,20 @@ def runtime_status_html() -> str:
         "Integration": "stock guarded adapter" if acceleration_providers is None else "provider API v1",
         "Registered providers": ", ".join(item["name"] for item in registered_providers()) or "none",
         "Bridge": manifest_status(),
+        "Optional exact-nightly": nightly_label,
+        "Loaded Torch": nightly["torch_version"],
     }
     rows = "".join(
         f"<tr><th style='text-align:left;padding-right:1rem'>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
         for label, value in fields.items()
     )
-    return f"<table>{rows}</table><p>Mode changes require a full Forge restart.</p>"
+    return (
+        f"<table>{rows}</table>"
+        "<p>Mode changes require a full Forge restart. The exact-nightly runtime "
+        "is selected before Torch imports, so v0.1 enables it only through "
+        "<code>launch_apple_accelerated.sh</code>; return to the normal Forge "
+        "launcher to disable it.</p>"
+    )
 
 
 def on_ui_settings() -> None:

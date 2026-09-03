@@ -33,23 +33,32 @@ Apple Silicon Macs.
 
 See [MODEL_SUPPORT.md](MODEL_SUPPORT.md) for the precise support boundary.
 
-## Measured gains
+## Default installation: measured gains
 
-Same M5 Pro development Mac, 1024×1024, same Anima checkpoint, prompt, seed,
-sampler, scheduler, and settings:
+These numbers are for the normal extension install using stable Forge Torch
+2.12.1 and `visual-fast`. They do **not** include the optional nightly runtime.
 
-| Steps | Vanilla Forge | Accelerator | Time reduction |
+Fresh-process ABBA test on the M5 Pro development Mac, 2026-09-03. Every pair
+used the same 1024×1024 Anima checkpoint, prompt, seed, GPU RNG, sampler,
+scheduler, and settings, with two samples per route:
+
+| Steps | Vanilla samples / median | Default add-on samples / median | Median reduction |
 | ---: | ---: | ---: | ---: |
-| 10 | 38.47s | 19.74s | **48.7%** |
-| 15 | 55.95s | 28.39s | **49.3%** |
-| 30 | 120.84s | 68.83s | **43.0%** |
+| 10 | 29.40, 37.23s / **33.31s** | 17.67, 22.24s / **19.96s** | **40.1%** |
+| 15 | 52.70, 42.73s / **47.72s** | 25.39, 25.27s / **25.33s** | **46.9%** |
+| 30 | 88.30, 83.10s / **85.70s** | 48.76, 48.74s / **48.75s** | **43.1%** |
+
+Same-route image repeats were pixel-exact. Vanilla and `visual-fast` images
+were visually comparable but not pixel-exact; `visual-fast` is a visual-parity
+mode, not a strict same-seed reproduction mode.
+
+See the [machine-readable release matrix](evidence/anima-stable-release-matrix-20260903.json)
+for every retained timing, route check, thermal event, and image comparison.
 
 Additional qualified component results:
 
 - Hi-Res Anima sampler loop: approximately **218s → 144s**.
 - SwinIR CPU-to-GPU compositor change: **60.687s → 43.111s** (**29.0%**).
-- Optional exact-nightly runtime: another **13–16%** over the already
-  accelerated normal-generation route.
 
 These are scoped results, not a promise that every model or complete Hi-Res
 request improves by the same percentage. Full settings, parity evidence, and
@@ -64,6 +73,9 @@ thermal protocol are in [BENCHMARKS.md](BENCHMARKS.md).
 
 After restart, open **Settings → Apple Accelerator**. The default
 `visual-fast` mode enables the qualified routes.
+
+The normal installation uses Forge's existing Torch runtime. It does not
+download or enable the optional nightly runtime.
 
 ### Requirements
 
@@ -88,16 +100,40 @@ Mode or tile changes require a full backend restart.
 
 ## Optional exact-nightly preview
 
-The opt-in runtime adds 13–16% over the accelerated Anima route without
-modifying Forge's main virtual environment:
+This is a second acceleration layer, not part of the default install. Historical
+tests measured another 13–16% reduction versus the already accelerated stable
+route. Only the 10-step result has a two-pair ABBA qualification; the 15- and
+30-step results are single cooled pairs. They are therefore not combined with
+the default-install table above.
+
+The word “exact” means that its Anima denoiser trajectory matches the stable
+accelerated route; it does not mean that either route is pixel-identical to
+vanilla Forge.
+
+Install the pinned overlay once:
 
 ```bash
 venv/bin/python extensions/forge_apple_accelerator/install_runtime.py
+```
+
+Enable it by fully stopping Forge and launching through:
+
+```bash
 extensions/forge_apple_accelerator/launch_apple_accelerated.sh
 ```
 
 It is pinned to `torch 2.15.0.dev20260901` and
-`torchvision 0.30.0.dev20260901`. Normal installation does not download it.
+`torchvision 0.30.0.dev20260901`. It shadows Torch only for that launch and
+does not modify Forge's virtual environment.
+
+Disable it by fully stopping that process and starting Forge normally through
+your usual launcher. Version 0.1 does not yet expose a safe UI runtime toggle:
+Torch must be selected before Forge imports it. A restart-aware add-on launcher
+and settings control require a separate lifecycle qualification before they can
+replace the dedicated script.
+
+No combined vanilla-to-nightly percentage is claimed until a fresh three-route
+vanilla / stable / nightly matrix passes timing, restart, and visual gates.
 
 ## Verify or disable
 
@@ -114,9 +150,9 @@ PYTHONPATH=extensions/forge_apple_accelerator \
   venv/bin/python -m forge_apple_accelerator.self_test
 ```
 
-To disable the add-on, select `off` or disable it in Forge's **Installed** tab
-and restart. The optional nightly runtime is active only when launched through
-its dedicated script.
+To disable the stable add-on routes, select `off` and fully restart, or disable
+the extension in Forge's **Installed** tab. To disable the optional nightly
+runtime, quit its process and return to your normal Forge launcher.
 
 ## Current limits
 

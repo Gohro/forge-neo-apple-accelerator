@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-03",
+  "comparison": "vanilla Forge (add-on off) versus stable add-on visual-fast",
+  "runtime": {
+    "torch": "2.12.1",
+    "forge_commit": "e91c293170e4451fc27490827f9aa62ccc77e6dc"
+  },
+  "checkpoint": {
+    "name": "novaCartoonAM_v10.safetensors",
+    "forge_hash": "1eacc855eb",
+    "family": "Anima",
+    "modules": [
+      "qwen_image_vae.safetensors",
+      "qwen_3_06b_base.safetensors"
+    ]
+  },
+  "workload": {
+    "prompt": "masterpiece, best quality, score_7, safe, 1girl, solo, brown hair, green eyes, school uniform, soft smile, looking at viewer, clean lineart, simple background",
+    "negative_prompt": "worst quality, low quality, score_1, score_2, score_3, artist name",
+    "width": 1024,
+    "height": 1024,
+    "steps": [
+      10,
+      15,
+      30
+    ],
+    "sampler": "Euler a",
+    "scheduler": "Normal",
+    "cfg": 4.0,
+    "distilled_cfg": 3.0,
+    "seed": 12345,
+    "randn_source": "GPU"
+  },
+  "protocol": {
+    "fresh_process_per_sample": true,
+    "model_load_warmup_steps": 1,
+    "samples_per_route_per_step": 2,
+    "order_per_step": [
+      "off",
+      "visual-fast",
+      "visual-fast",
+      "off"
+    ],
+    "minimum_cooldown_seconds": 45,
+    "required_thermal_state_before_process": "nominal",
+    "low_power_mode": false
+  },
+  "results": {
+    "10": {
+      "off_seconds": [
+        29.397230833999856,
+        37.22829450000063
+      ],
+      "off_median_seconds": 33.31276266700024,
+      "visual_fast_seconds": [
+        17.674446833999355,
+        22.237055790999875
+      ],
+      "visual_fast_median_seconds": 19.955751312499615,
+      "median_reduction_fraction": 0.4009577796960123,
+      "speedup": 1.6693314195659597,
+      "cross_route_ssim": 0.8148590991751355
+    },
+    "15": {
+      "off_seconds": [
+        52.69666512499953,
+        42.734298459000456
+      ],
+      "off_median_seconds": 47.71548179199999,
+      "visual_fast_seconds": [
+        25.39411658300014,
+        25.274751166999522
+      ],
+      "visual_fast_median_seconds": 25.33443387499983,
+      "median_reduction_fraction": 0.4690521205373762,
+      "speedup": 1.883424039685604,
+      "cross_route_ssim": 0.7462338929899396
+    },
+    "30": {
+      "off_seconds": [
+        88.301819583,
+        83.0958780839992
+      ],
+      "off_median_seconds": 85.6988488334996,
+      "visual_fast_seconds": [
+        48.7573022079996,
+        48.74380454099992
+      ],
+      "visual_fast_median_seconds": 48.75055337449976,
+      "median_reduction_fraction": 0.43114109421452096,
+      "speedup": 1.7579051498177782,
+      "cross_route_ssim": 0.8634357077031677
+    }
+  },
+  "route_proof": {
+    "off": "provider-disabled fallback for RoPE and attention",
+    "visual_fast": "Metal RoPE hit plus MPSGraph self/cross-attention hit"
+  },
+  "visual_gate": {
+    "same_route_repeats_pixel_exact": true,
+    "off_vs_visual_fast_pixel_exact": false,
+    "verdict": "Both routes visually strong and closely matched; visual-fast qualifies for visual parity, not strict same-seed identity."
+  },
+  "decision": "Use these current stable-install medians as the public default-install result. Keep optional nightly gains separate until a current three-route qualification passes."
+}
