@@ -42,8 +42,6 @@ Anima method signatures are rejected safely and reported by the status API.
 
 ## Install from Forge Neo
 
-Once the repository is public:
-
 1. Open **Extensions → Install from URL**.
 2. Paste `https://github.com/Gohro/forge-neo-apple-accelerator`.
 3. Install, open the **Installed** tab, then choose **Apply and restart UI**.
