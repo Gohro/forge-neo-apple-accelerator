@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.so
+native_build/*
+!native_build/.gitignore
+runtime_overlay/
+*.zip
