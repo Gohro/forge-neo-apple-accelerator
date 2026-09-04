@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Install or inspect the optional exact-nightly runtime overlay.
+"""Install or inspect the extension-owned stable Apple runtime overlay.
 
 The overlay shadows only Torch and TorchVision.  It never modifies Forge Neo's
-venv and is used only by ``launch_apple_accelerated.sh``.
+venv. The extension preload selects it before Torch imports, and disabling the
+extension returns Forge to its original runtime.
 """
 
 from __future__ import annotations
@@ -64,6 +65,8 @@ def installed_status(overlay: Path, manifest: dict) -> tuple[bool, str]:
         return False, f"stamp_unavailable:{type(exc).__name__}"
     if stamp.get("runtime_id") != manifest.get("runtime_id"):
         return False, "runtime_id_mismatch"
+    if stamp.get("manifest_sha256") != sha256(MANIFEST_PATH):
+        return False, "manifest_hash_mismatch"
     for package in manifest["packages"]:
         distribution = overlay / f"{package['name']}-{package['version']}.dist-info"
         if not distribution.is_dir():
@@ -113,7 +116,7 @@ def verify_import(overlay: Path, manifest: dict) -> None:
 def install(overlay: Path, manifest: dict, *, replace: bool) -> None:
     ready, reason = installed_status(overlay, manifest)
     if ready:
-        print(f"Exact-nightly overlay already ready: {overlay}")
+        print(f"Stable Apple runtime already ready: {overlay}")
         return
     if overlay.exists() and any(overlay.iterdir()):
         if not replace:
@@ -149,7 +152,7 @@ def install(overlay: Path, manifest: dict, *, replace: bool) -> None:
     }
     (overlay / STAMP_NAME).write_text(json.dumps(stamp, indent=2, sort_keys=True), encoding="utf-8")
     verify_import(overlay, manifest)
-    print(f"Exact-nightly overlay ready: {overlay}")
+    print(f"Stable Apple runtime ready: {overlay}")
 
 
 def main() -> int:

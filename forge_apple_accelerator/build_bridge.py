@@ -77,12 +77,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     elapsed = time.perf_counter() - started
 
-    runtime_probe = module.probe_runtime()
     tensor_probe: dict[str, Any] = {}
     if torch.backends.mps.is_available():
+        # Materialize the MPS runtime before asking the private bridge for its
+        # current stream. A pristine process can otherwise reach the stream
+        # accessor before PyTorch has initialized its MPS device.
         sample = torch.empty((2, 4096, 16, 128), device="mps", dtype=torch.bfloat16)
         tensor_probe = module.probe_tensor(sample)
         torch.mps.synchronize()
+    # Do not call the private current-stream diagnostic during installation.
+    # It is not required for bridge validity and has proven unsafe in a pristine
+    # PyTorch 2.12/2.14 helper process on macOS 26. The tensor-storage probe above
+    # exercises the ABI we actually depend on.
+    runtime_probe = {
+        "mps_available": bool(torch.backends.mps.is_available()),
+        "native_current_stream_probe": "deferred_to_runtime",
+    }
 
     module_path = Path(module.__file__).resolve()
     manifest = {

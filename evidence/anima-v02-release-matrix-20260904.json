@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-04",
+  "comparison": "Forge Neo with add-on disabled versus automatic v0.2 installed route",
+  "workload": {
+    "checkpoint_family": "Anima",
+    "size": [1024, 1024],
+    "steps": 10,
+    "sampler": "Euler a",
+    "scheduler": "Normal",
+    "cfg": 4.0,
+    "distilled_cfg": 3.0,
+    "seed": 12345,
+    "randn_source": "CPU"
+  },
+  "protocol": {
+    "fresh_process_per_sample": true,
+    "minimum_cooldown_seconds": 55,
+    "order": [
+      "accelerated-auto",
+      "vanilla-disabled",
+      "vanilla-disabled",
+      "accelerated-auto"
+    ],
+    "manual_route_environment_overrides": false,
+    "all_thermal_boundaries": "nominal"
+  },
+  "results": {
+    "vanilla_seconds": [22.727521375003562, 22.755638209004246],
+    "vanilla_median_seconds": 22.741579792003904,
+    "accelerated_seconds": [16.28446954100218, 18.32467466700473],
+    "accelerated_median_seconds": 17.304572104003455,
+    "seconds_saved": 5.437007688000449,
+    "reduction_fraction": 0.23907783618058664,
+    "speedup": 1.314194864531934
+  },
+  "route_proof": {
+    "vanilla": "Torch 2.12.1; extension status endpoint absent",
+    "accelerated": "stable Torch 2.14.0 overlay active; native bridge valid; Metal RoPE and MPSGraph attention hits"
+  },
+  "visual_gate": {
+    "vanilla_repeats_pixel_exact": true,
+    "accelerated_repeats_pixel_exact": true,
+    "cross_route_ssim": 0.9308382880847975,
+    "verdict": "same subject, composition, detail level, and overall quality; visual-fast parity, not strict cross-runtime identity"
+  },
+  "artifacts": [
+    "models/apple_mps/benchmarks/phase4-normal-release-accelerated-c1-20260904/",
+    "models/apple_mps/benchmarks/phase4-normal-release-vanilla-b1-20260904/",
+    "models/apple_mps/benchmarks/phase4-normal-release-vanilla-b2-20260904/",
+    "models/apple_mps/benchmarks/phase4-normal-release-accelerated-c2-20260904/"
+  ],
+  "decision": "Use the 23.9 percent packaged v0.2 result as the current normal-generation headline. Retain the larger 2026-09-03 Torch 2.12 matrix as historical evidence only."
+}

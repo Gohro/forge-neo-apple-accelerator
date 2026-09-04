@@ -366,6 +366,8 @@ def apply_upscaler_settings(shared) -> dict[str, Any]:
             return status()
         gpu_value = os.getenv("FORGE_APPLE_UPSCALER_GPU_COMPOSITE", "off").strip().lower()
         gpu_enabled = gpu_value not in {"", "0", "false", "no", "off"}
+        bf16_value = os.getenv("FORGE_APPLE_SWINIR_BF16", "off").strip().lower()
+        bf16_enabled = bf16_value not in {"", "0", "false", "no", "off"}
         try:
             tile = int(os.getenv("FORGE_APPLE_UPSCALER_TILE", "512"))
         except ValueError:
@@ -382,10 +384,54 @@ def apply_upscaler_settings(shared) -> dict[str, Any]:
             upscaler_reason="ok",
             upscaler_gpu_composite=gpu_enabled,
             upscaler_tile=tile,
+            swinir_bf16_requested=bf16_enabled,
+            swinir_bf16_active=False,
+            swinir_bf16_reason="pending_app_start" if bf16_enabled else "disabled",
         )
+        return status()
+
+
+def activate_swinir_bf16() -> dict[str, Any]:
+    """Install the deferred SwinIR loader patch after Forge imports settle."""
+
+    with _LOCK:
+        requested = bool(_STATUS.get("swinir_bf16_requested"))
+        if not requested:
+            return status()
+        try:
+            from forge_apple_accelerator.runtime import swinir_bf16
+
+            bf16_status = swinir_bf16.install_loader_patch()
+            _STATUS.update(
+                swinir_bf16_active=bool(bf16_status.get("loader_patched")),
+                swinir_bf16_reason=bf16_status.get("loader_reason", "unknown"),
+            )
+        except Exception as exc:
+            _STATUS.update(
+                swinir_bf16_active=False,
+                swinir_bf16_reason=f"install_error:{type(exc).__name__}:{exc}",
+            )
         return status()
 
 
 def status() -> dict[str, Any]:
     with _LOCK:
-        return dict(_STATUS)
+        result = dict(_STATUS)
+    if result.get("swinir_bf16_requested"):
+        try:
+            from forge_apple_accelerator.runtime import swinir_bf16
+
+            live = swinir_bf16.status()
+            result.update(
+                swinir_compile_requested=bool(live.get("compile_requested")),
+                swinir_compile_supported=bool(live.get("compile_supported")),
+                swinir_compile_active=bool(live.get("compile_active")),
+                swinir_compile_reason=live.get("compile_reason", "unknown"),
+                swinir_compiled_models=int(live.get("compiled_models", 0)),
+            )
+        except Exception as exc:
+            result.update(
+                swinir_compile_active=False,
+                swinir_compile_reason=f"status_error:{type(exc).__name__}:{exc}",
+            )
+    return result

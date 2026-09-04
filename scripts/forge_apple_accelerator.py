@@ -9,8 +9,6 @@ import platform
 import sys
 from pathlib import Path
 
-import gradio as gr
-
 EXTENSION_ROOT = Path(__file__).resolve().parents[1]
 if str(EXTENSION_ROOT) not in sys.path:
     sys.path.insert(0, str(EXTENSION_ROOT))
@@ -48,11 +46,16 @@ def last_route(operation: str) -> dict:
 
 
 
+def selected_manifest_path() -> Path:
+    configured = os.getenv("FORGE_APPLE_MPSGRAPH_ATTENTION_MANIFEST", "").strip()
+    return Path(configured).expanduser().resolve() if configured else DEFAULT_MANIFEST_PATH
+
+
 def manifest_status() -> str:
     try:
         import torch
 
-        valid, reason, manifest, _module_file = validate_manifest(DEFAULT_MANIFEST_PATH, torch_module=torch)
+        valid, reason, manifest, _module_file = validate_manifest(selected_manifest_path(), torch_module=torch)
         if not valid:
             return f"native bridge unavailable ({reason})"
         return f"native bridge ready for Torch {manifest.get('torch', 'unknown')} (verified hashes)"
@@ -60,7 +63,7 @@ def manifest_status() -> str:
         return f"native bridge unavailable ({type(exc).__name__})"
 
 
-def exact_nightly_status() -> dict:
+def stable_runtime_status() -> dict:
     """Report install and activation state without importing a second Torch."""
     manifest_path = EXTENSION_ROOT / "runtime_overlay_manifest.json"
     stamp_path = EXTENSION_ROOT / "runtime_overlay" / "forge_apple_runtime.json"
@@ -81,7 +84,6 @@ def exact_nightly_status() -> dict:
         installed = False
         reason = f"stamp_unavailable:{type(exc).__name__}"
 
-    compatibility_active = os.getenv("FORGE_APPLE_ANIMA_COMPAT_BACKEND", "").strip().lower() == "torch212-exact"
     overlay_root = (EXTENSION_ROOT / "runtime_overlay").resolve()
     try:
         import torch
@@ -96,8 +98,7 @@ def exact_nightly_status() -> dict:
 
     return {
         "installed": installed,
-        "active": bool(installed and compatibility_active and overlay_active),
-        "compatibility_route_active": compatibility_active,
+        "active": bool(installed and overlay_active),
         "overlay_torch_active": overlay_active,
         "runtime_id": expected_runtime,
         "torch_version": str(torch_version),
@@ -119,6 +120,8 @@ def runtime_status_payload() -> dict:
         "FORGE_APPLE_MLX_SITE",
         "FORGE_APPLE_MLX_DENOISER_CHECKPOINT",
         "FORGE_APPLE_UPSCALER_GPU_COMPOSITE",
+        "FORGE_APPLE_SWINIR_BF16",
+        "FORGE_APPLE_SWINIR_COMPILE",
         "FORGE_APPLE_UPSCALER_TILE",
     )
     environment = {key: os.getenv(key, "") for key in keys}
@@ -131,7 +134,7 @@ def runtime_status_payload() -> dict:
     try:
         import torch
 
-        manifest_valid, manifest_reason, manifest, module_path = validate_manifest(DEFAULT_MANIFEST_PATH, torch_module=torch)
+        manifest_valid, manifest_reason, manifest, module_path = validate_manifest(selected_manifest_path(), torch_module=torch)
         bridge = {
             "valid": manifest_valid,
             "reason": manifest_reason,
@@ -154,11 +157,12 @@ def runtime_status_payload() -> dict:
         },
         "provider": provider.status(),
         "bridge": bridge,
-        "exact_nightly": exact_nightly_status(),
+        "stable_runtime": stable_runtime_status(),
     }
 
 
 def on_app_started(_demo, app) -> None:
+    stock_adapter.activate_swinir_bf16()
     app.add_api_route(
         "/internal/forge-apple-accelerator/status",
         runtime_status_payload,
@@ -173,13 +177,13 @@ def on_app_started(_demo, app) -> None:
 
 
 def runtime_status_html() -> str:
-    nightly = exact_nightly_status()
-    if nightly["active"]:
-        nightly_label = f"active ({nightly['torch_version']})"
-    elif nightly["installed"]:
-        nightly_label = "installed, inactive (normal Forge launcher)"
+    runtime = stable_runtime_status()
+    if runtime["active"]:
+        runtime_label = f"active ({runtime['torch_version']})"
+    elif runtime["installed"]:
+        runtime_label = "installed, inactive; restart Forge"
     else:
-        nightly_label = "not installed"
+        runtime_label = "not installed; base-runtime acceleration active"
     fields = {
         "Host": f"{platform.system()} {platform.machine()}",
         "Mode": os.getenv("FORGE_APPLE_ACCELERATOR_MODE", "inherit"),
@@ -188,12 +192,14 @@ def runtime_status_html() -> str:
         "Cross-attention": os.getenv("FORGE_APPLE_ATTENTION_CROSS", "off"),
         "Whole denoiser": os.getenv("FORGE_APPLE_DENOISER_BACKEND", "off"),
         "Upscaler GPU composite": os.getenv("FORGE_APPLE_UPSCALER_GPU_COMPOSITE", "off"),
+        "SwinIR BF16": os.getenv("FORGE_APPLE_SWINIR_BF16", "off"),
+        "Compiled SwinIR": os.getenv("FORGE_APPLE_SWINIR_COMPILE", "off"),
         "Upscaler tile": os.getenv("FORGE_APPLE_UPSCALER_TILE", "256"),
         "Integration": "stock guarded adapter" if acceleration_providers is None else "provider API v1",
         "Registered providers": ", ".join(item["name"] for item in registered_providers()) or "none",
         "Bridge": manifest_status(),
-        "Optional exact-nightly": nightly_label,
-        "Loaded Torch": nightly["torch_version"],
+        "Stable Apple runtime": runtime_label,
+        "Loaded Torch": runtime["torch_version"],
     }
     rows = "".join(
         f"<tr><th style='text-align:left;padding-right:1rem'>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>"
@@ -201,52 +207,13 @@ def runtime_status_html() -> str:
     )
     return (
         f"<table>{rows}</table>"
-        "<p>Mode changes require a full Forge restart. The exact-nightly runtime "
-        "is selected before Torch imports, so v0.1 enables it only through "
-        "<code>launch_apple_accelerated.sh</code>; return to the normal Forge "
-        "launcher to disable it.</p>"
+        "<p>Qualified acceleration is automatic while the add-on is enabled. "
+        "Disable or re-enable the add-on in Forge's Extensions panel, then restart Forge.</p>"
     )
 
 
 def on_ui_settings() -> None:
     section = ("forge_apple_accelerator", "Apple Accelerator")
-    shared.opts.add_option(
-        "forge_apple_accelerator_mode",
-        shared.OptionInfo(
-            "visual-fast",
-            "Acceleration mode",
-            gr.Dropdown,
-            {"choices": ["inherit", "off", "strict", "visual-fast"]},
-            section=section,
-            category_id="system",
-        )
-        .info("Strict keeps only exact promoted routes; visual-fast enables parity-gated MPSGraph attention.")
-        .needs_restart(),
-    )
-    shared.opts.add_option(
-        "forge_apple_accelerator_upscaler_gpu_composite",
-        shared.OptionInfo(
-            True,
-            "Use GPU tile compositing for SwinIR/ESRGAN",
-            section=section,
-            category_id="system",
-        )
-        .info("Measured 29% faster for the controlled SwinIR compositor comparison.")
-        .needs_restart(),
-    )
-    shared.opts.add_option(
-        "forge_apple_accelerator_upscaler_tile",
-        shared.OptionInfo(
-            768,
-            "Apple upscaler tile size",
-            gr.Slider,
-            {"minimum": 256, "maximum": 1024, "step": 16},
-            section=section,
-            category_id="system",
-        )
-        .info("768/full-model behavior is qualified on the development Mac; use 512 on lower-memory Macs.")
-        .needs_restart(),
-    )
     status = shared.OptionHTML(runtime_status_html())
     status.section = section
     status.category_id = "system"

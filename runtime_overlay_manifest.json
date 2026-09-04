@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "runtime_id": "torch-2.15.0.dev20260901-cp313-macos-arm64",
+  "runtime_id": "torch-2.14.0-cp313-macos-arm64",
   "python": {
     "major": 3,
     "minor": 13,
@@ -13,19 +13,19 @@
   "packages": [
     {
       "name": "torch",
-      "version": "2.15.0.dev20260901",
-      "filename": "torch-2.15.0.dev20260901-cp313-cp313-macosx_14_0_arm64.whl",
-      "url": "https://download-r2.pytorch.org/whl/nightly/cpu/torch-2.15.0.dev20260901-cp313-cp313-macosx_14_0_arm64.whl",
-      "sha256": "e7eca5d9fb8b4332d0952c826eb424bf38b0bc280d23a105a6e8d934ebd97bb4",
-      "size": 127859905
+      "version": "2.14.0",
+      "filename": "torch-2.14.0-cp313-cp313-macosx_14_0_arm64.whl",
+      "url": "https://download.pytorch.org/whl/cpu/torch-2.14.0-cp313-cp313-macosx_14_0_arm64.whl",
+      "sha256": "caf6359d64c0074bcb9f8641a169239118c8165a0a0fef79110c72bfd6474bec",
+      "size": 127212808
     },
     {
       "name": "torchvision",
-      "version": "0.30.0.dev20260901",
-      "filename": "torchvision-0.30.0.dev20260901-cp313-cp313-macosx_14_0_arm64.whl",
-      "url": "https://download-r2.pytorch.org/whl/nightly/cpu/torchvision-0.30.0.dev20260901-cp313-cp313-macosx_14_0_arm64.whl",
-      "sha256": "8ca69b333b33952f0ff2125a37d9a14e2d3ca36ca2ddb0d958ee9ab526d1f00b",
-      "size": 1813964
+      "version": "0.29.0",
+      "filename": "torchvision-0.29.0-cp313-cp313-macosx_14_0_arm64.whl",
+      "url": "https://download.pytorch.org/whl/cpu/torchvision-0.29.0-cp313-cp313-macosx_14_0_arm64.whl",
+      "sha256": "183378c36c216d51234d542cb10edab98b262483db1535515899cb8668f4c395",
+      "size": 1813795
     }
   ]
 }

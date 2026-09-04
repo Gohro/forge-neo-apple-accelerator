@@ -65,21 +65,16 @@ def main() -> int:
     script_module = importlib.util.module_from_spec(script_spec)
     script_spec.loader.exec_module(script_module)
 
-    nightly = script_module.exact_nightly_status()
+    runtime = script_module.stable_runtime_status()
     assert {
         "installed",
         "active",
-        "compatibility_route_active",
         "overlay_torch_active",
         "torch_version",
         "torch_file",
         "reason",
-    } <= nightly.keys(), nightly
-    assert nightly["active"] is bool(
-        nightly["installed"]
-        and nightly["compatibility_route_active"]
-        and nightly["overlay_torch_active"]
-    ), nightly
+    } <= runtime.keys(), runtime
+    assert runtime["active"] is bool(runtime["installed"] and runtime["overlay_torch_active"]), runtime
 
     from forge_apple_accelerator import stock_adapter
 
@@ -96,7 +91,7 @@ def main() -> int:
                 "ok": True,
                 "stock_root": str(stock_root),
                 "exact": exact,
-                "exact_nightly_status": nightly,
+                "stable_runtime_status": runtime,
                 "adapter": adapter,
                 "fallback_byte_exact": True,
             },

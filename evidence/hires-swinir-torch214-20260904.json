@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-04",
+  "scope": "Hi-Res Fix SwinIR_4x model execution and full Forge 1024-to-1536 requests",
+  "qualification": "visual-fast preview; stable Torch 2.14 packaging and repeated ABBA qualification remain pending",
+  "workload": {
+    "checkpoint_family": "Anima",
+    "upscaler": "SwinIR_4x.pth",
+    "base_width": 1024,
+    "base_height": 1024,
+    "hires_width": 1536,
+    "hires_height": 1536,
+    "base_steps": 10,
+    "hires_steps": 10,
+    "sampler": "Euler a",
+    "seed": 12345,
+    "noise_source_for_cross_runtime_comparison": "CPU"
+  },
+  "thermal_protocol": {
+    "fresh_processes": true,
+    "cooldown_seconds_between_matched_runs": 120,
+    "required_start_state": "nominal",
+    "note": "An apparent 24 percent FP32 runtime gain disappeared when order was reversed and was rejected as thermal/clock-state distortion."
+  },
+  "standalone_swinir_1024_input_seconds": {
+    "torch_2_12_1_fp32_eager": 33.513,
+    "torch_2_14_0_fp32_eager": 34.448,
+    "torch_2_12_1_bf16_eager": 23.774,
+    "torch_2_14_0_bf16_eager": 20.805,
+    "torch_2_14_0_bf16_compiled_steady": 9.628
+  },
+  "standalone_reductions_vs_torch_2_12_1_fp32": {
+    "torch_2_12_1_bf16": {
+      "fraction": 0.2906,
+      "speedup": 1.4096
+    },
+    "torch_2_14_0_bf16": {
+      "fraction": 0.3792,
+      "speedup": 1.6108
+    },
+    "torch_2_14_0_bf16_compiled_steady": {
+      "fraction": 0.7127,
+      "speedup": 3.4807
+    }
+  },
+  "full_forge_component_ab_torch_2_12_1": {
+    "baseline": "FP32 SwinIR",
+    "candidate": "guarded BF16 SwinIR",
+    "swinir_seconds": {
+      "baseline": 33.922,
+      "candidate": 23.785,
+      "reduction_fraction": 0.2988
+    },
+    "complete_request_seconds": {
+      "baseline": 147.143,
+      "candidate": 137.519,
+      "reduction_fraction": 0.0654
+    },
+    "final_image": {
+      "ssim": 0.996785,
+      "visual_review": "indistinguishable at normal inspection"
+    },
+    "caveat": "The native attention bridge was hash-invalid identically on both sides, so this pair qualifies the SwinIR component only."
+  },
+  "full_forge_runtime_ab_bf16": {
+    "baseline": "Torch 2.12.1",
+    "candidate": "isolated stable Torch 2.14.0 overlay",
+    "vae_total_seconds": {
+      "baseline": 12.650,
+      "candidate": 3.797
+    },
+    "swinir_seconds": {
+      "baseline": 31.281,
+      "candidate": 27.680
+    },
+    "second_sampler_seconds": {
+      "baseline": 61.164,
+      "candidate": 55.059
+    },
+    "complete_request_seconds": {
+      "baseline": 128.588,
+      "candidate": 107.534,
+      "reduction_fraction": 0.1637,
+      "speedup": 1.1958
+    },
+    "final_image": {
+      "ssim": 0.9181,
+      "visual_review": "same subject, composition, and quality; small highlight and hair-shape drift; visual-fast only"
+    }
+  },
+  "full_forge_compile_ab_torch_2_14_0_bf16": {
+    "baseline": "eager SwinIR",
+    "candidate": "persistent torch.compile SwinIR graphs",
+    "swinir_seconds": {
+      "baseline": 27.680,
+      "candidate": 13.358,
+      "reduction_fraction": 0.5174,
+      "speedup": 2.0729
+    },
+    "complete_request_seconds": {
+      "baseline": 107.534,
+      "candidate": 93.528,
+      "reduction_fraction": 0.1302,
+      "speedup": 1.1498
+    },
+    "final_image": {
+      "ssim": 0.997750,
+      "maximum_channel_difference_8bit": 56,
+      "mean_channel_difference_8bit": 0.3435,
+      "visual_review": "indistinguishable at normal inspection"
+    },
+    "compile_lifecycle": {
+      "first_ever_compile_seconds_per_graph_variant": "about 36",
+      "fresh_process_with_persistent_cache_seconds": [13.198, 13.035],
+      "steady_same_process_seconds": 9.628
+    }
+  },
+  "artifacts": [
+    "models/apple_mps/benchmarks/phase4-hires-torch214/",
+    "models/apple_mps/benchmarks/phase4-hires-swinir-bf16-e2e-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-torch214-cpu-rng-e2e-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-torch214-compile-e2e-20260904/"
+  ],
+  "decision": "Ship guarded BF16 for the exact SwinIR_4x checkpoint in visual-fast. Keep compiled SwinIR opt-in and inactive on the default Torch 2.12 runtime until stable Torch 2.14 packaging and repeated thermal-balanced qualification complete."
+}

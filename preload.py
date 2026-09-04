@@ -8,6 +8,7 @@ environment variables without modifying a user's launcher.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -19,7 +20,58 @@ _ROOT = Path(__file__).resolve().parents[2]
 _EXTENSION_ROOT = Path(__file__).resolve().parent
 _EXTENSION_PACKAGE_PARENT = _EXTENSION_ROOT
 _MANIFEST = _EXTENSION_ROOT / "native_build/mpsgraph_attention_interop/manifest.json"
+_STABLE_MANIFEST = _EXTENSION_ROOT / "native_build/mpsgraph_attention_interop-stable/manifest.json"
+_RUNTIME_MANIFEST = _EXTENSION_ROOT / "runtime_overlay_manifest.json"
+_RUNTIME_OVERLAY = _EXTENSION_ROOT / "runtime_overlay"
+_RUNTIME_STAMP = _RUNTIME_OVERLAY / "forge_apple_runtime.json"
 _VALID_MODES = {"inherit", "off", "strict", "visual-fast"}
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _activate_stable_runtime() -> bool:
+    """Select the extension runtime before Forge imports Torch."""
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        return False
+    if "torch" in sys.modules:
+        os.environ["FORGE_APPLE_RUNTIME_ACTIVATION_ERROR"] = "torch_already_imported"
+        return False
+    try:
+        manifest = json.loads(_RUNTIME_MANIFEST.read_text(encoding="utf-8"))
+        stamp = json.loads(_RUNTIME_STAMP.read_text(encoding="utf-8"))
+        if stamp.get("runtime_id") != manifest.get("runtime_id"):
+            raise RuntimeError("runtime_id_mismatch")
+        if stamp.get("manifest_sha256") != _sha256(_RUNTIME_MANIFEST):
+            raise RuntimeError("manifest_hash_mismatch")
+        if not _STABLE_MANIFEST.is_file():
+            raise RuntimeError("stable_bridge_manifest_missing")
+    except Exception as exc:
+        os.environ["FORGE_APPLE_RUNTIME_ACTIVATION_ERROR"] = f"{type(exc).__name__}:{exc}"
+        return False
+
+    sys.path.insert(0, str(_RUNTIME_OVERLAY))
+    os.environ["FORGE_APPLE_STABLE_RUNTIME_ACTIVE"] = "1"
+    os.environ["FORGE_APPLE_MPSGRAPH_ATTENTION_MANIFEST"] = str(_STABLE_MANIFEST)
+    os.environ["FORGE_APPLE_MPSGRAPH_EXTENSION_MANIFEST"] = str(_STABLE_MANIFEST)
+    compile_cache = _EXTENSION_ROOT / "runtime_cache/torchinductor"
+    compile_cache.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", str(compile_cache))
+    return True
+
+
+def _recommended_upscaler_tile() -> int:
+    try:
+        total_bytes = int(os.sysconf("SC_PAGE_SIZE")) * int(os.sysconf("SC_PHYS_PAGES"))
+    except (OSError, TypeError, ValueError):
+        return 512
+    return 768 if total_bytes >= 32 * 1024**3 else 512
 
 
 def _saved_config() -> dict:
@@ -35,9 +87,9 @@ def _saved_mode() -> str:
     configured = os.getenv("FORGE_APPLE_ACCELERATOR_MODE", "").strip().lower()
     if configured:
         return configured
-    value = _saved_config().get("forge_apple_accelerator_mode", "visual-fast")
-    normalized = str(value).strip().lower()
-    return normalized if normalized in _VALID_MODES else "visual-fast"
+    # v0.2 makes extension enable/disable the public control. Ignore stale
+    # pre-v0.2 performance-mode values left in config.json after an upgrade.
+    return "visual-fast"
 
 
 def _apply_mode(mode: str) -> None:
@@ -50,26 +102,25 @@ def _apply_mode(mode: str) -> None:
     # Core ML remains outside the promoted Forge path in every parity-first mode.
     os.environ["FORGE_APPLE_BACKEND"] = "off"
     if mode == "visual-fast":
-        saved = _saved_config()
         # Whole-denoiser MLX stays disabled unless the user explicitly opts in.
         os.environ.setdefault("FORGE_APPLE_DENOISER_BACKEND", "off")
         os.environ["FORGE_APPLE_METAL_KERNELS"] = "rope"
         os.environ["FORGE_APPLE_ATTENTION_BACKEND"] = "mpsgraph-sdpa"
         os.environ["FORGE_APPLE_ATTENTION_CROSS"] = "1"
-        gpu_composite = saved.get("forge_apple_accelerator_upscaler_gpu_composite", True)
-        tile = saved.get("forge_apple_accelerator_upscaler_tile", 768)
-        os.environ["FORGE_APPLE_UPSCALER_GPU_COMPOSITE"] = "1" if bool(gpu_composite) else "off"
-        try:
-            normalized_tile = max(0, min(int(tile), 1024))
-        except (TypeError, ValueError):
-            normalized_tile = 768
-        os.environ["FORGE_APPLE_UPSCALER_TILE"] = str(normalized_tile)
+        os.environ["FORGE_APPLE_UPSCALER_GPU_COMPOSITE"] = "1"
+        os.environ["FORGE_APPLE_SWINIR_BF16"] = "1"
+        os.environ["FORGE_APPLE_SWINIR_COMPILE"] = (
+            "1" if os.getenv("FORGE_APPLE_STABLE_RUNTIME_ACTIVE") == "1" else "off"
+        )
+        os.environ["FORGE_APPLE_UPSCALER_TILE"] = str(_recommended_upscaler_tile())
     elif mode == "strict":
         os.environ["FORGE_APPLE_DENOISER_BACKEND"] = "off"
         os.environ["FORGE_APPLE_METAL_KERNELS"] = "rope"
         os.environ["FORGE_APPLE_ATTENTION_BACKEND"] = "off"
         os.environ["FORGE_APPLE_ATTENTION_CROSS"] = "off"
         os.environ["FORGE_APPLE_UPSCALER_GPU_COMPOSITE"] = "off"
+        os.environ["FORGE_APPLE_SWINIR_BF16"] = "off"
+        os.environ["FORGE_APPLE_SWINIR_COMPILE"] = "off"
         os.environ["FORGE_APPLE_UPSCALER_TILE"] = "256"
     else:
         os.environ["FORGE_APPLE_DENOISER_BACKEND"] = "off"
@@ -77,6 +128,8 @@ def _apply_mode(mode: str) -> None:
         os.environ["FORGE_APPLE_ATTENTION_BACKEND"] = "off"
         os.environ["FORGE_APPLE_ATTENTION_CROSS"] = "off"
         os.environ["FORGE_APPLE_UPSCALER_GPU_COMPOSITE"] = "off"
+        os.environ["FORGE_APPLE_SWINIR_BF16"] = "off"
+        os.environ["FORGE_APPLE_SWINIR_COMPILE"] = "off"
         os.environ["FORGE_APPLE_UPSCALER_TILE"] = "256"
 
 
@@ -125,6 +178,8 @@ class _ModeAction(argparse.Action):
 
 def preload(parser) -> None:
     supported_host = platform.system() == "Darwin" and platform.machine() == "arm64"
+    if supported_host:
+        _activate_stable_runtime()
     mode = _saved_mode() if supported_host else "off"
     _apply_mode(mode)
     if supported_host:

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-04",
+  "comparison": "Forge Neo with the add-on disabled versus the automatic installed add-on route",
+  "workload": {
+    "checkpoint_family": "Anima",
+    "base_size": [1024, 1024],
+    "hires_size": [1536, 1536],
+    "base_steps": 10,
+    "hires_steps": 10,
+    "upscaler": "SwinIR_4x.pth",
+    "denoising_strength": 0.15,
+    "sampler": "Euler a",
+    "seed": 12345,
+    "randn_source": "CPU"
+  },
+  "protocol": {
+    "fresh_process_per_sample": true,
+    "minimum_cooldown_seconds": 120,
+    "required_start_thermal_state": "nominal",
+    "order": [
+      "accelerated-auto",
+      "vanilla-disabled",
+      "vanilla-disabled",
+      "accelerated-auto"
+    ],
+    "manual_route_environment_overrides": false,
+    "accelerated_activation": "ordinary Forge launch; extension early bootstrap and preload selected all routes",
+    "vanilla_activation": "extension listed in disabled_extensions; original Forge Torch loaded"
+  },
+  "runtime_proof": {
+    "vanilla": {
+      "torch": "2.12.1",
+      "accelerator_status_endpoint": "absent (HTTP 404)"
+    },
+    "accelerated": {
+      "torch": "2.14.0",
+      "runtime_overlay_active": true,
+      "native_bridge_valid": true,
+      "swinir_bf16_active": true,
+      "swinir_compile_active": true,
+      "swinir_compile_fallbacks": 0
+    }
+  },
+  "results": {
+    "vanilla": {
+      "complete_request_seconds": [141.56063220799842, 127.41777325000294],
+      "complete_request_median_seconds": 134.48920272900068,
+      "swinir_seconds": [45.31576124999992, 39.831672209002136],
+      "swinir_median_seconds": 42.57371672950103,
+      "second_sampler_seconds": [59.701906207999855, 53.03129929200077],
+      "thermal_start": ["nominal", "nominal"],
+      "thermal_end": ["fair", "fair"]
+    },
+    "accelerated": {
+      "complete_request_seconds": [91.78324837500259, 81.98353075000341],
+      "complete_request_median_seconds": 86.883389562503,
+      "swinir_seconds": [13.233506958000362, 11.57522712500213],
+      "swinir_median_seconds": 12.404367041501246,
+      "second_sampler_seconds": [53.37355324999953, 48.40375058400241],
+      "thermal_start": ["nominal", "nominal"],
+      "thermal_end": ["nominal", "nominal"]
+    },
+    "median_change": {
+      "complete_request_seconds_saved": 47.60581316649768,
+      "complete_request_reduction_fraction": 0.35397498238148284,
+      "complete_request_speedup": 1.547927669560481,
+      "swinir_seconds_saved": 30.169349687999784,
+      "swinir_reduction_fraction": 0.7086379110305452,
+      "swinir_speedup": 3.4321555132206503
+    }
+  },
+  "compile_lifecycle": {
+    "clean_install_first_request_seconds": 112.4669726669963,
+    "clean_install_first_swinir_seconds": 35.26430550000077,
+    "fresh_restart_cached_request_median_seconds": 86.883389562503,
+    "cache_location": "extension-owned runtime_cache/torchinductor",
+    "clean_and_cached_outputs_pixel_exact": true
+  },
+  "visual_gate": {
+    "vanilla_repeats_pixel_exact": true,
+    "accelerated_repeats_pixel_exact": true,
+    "vanilla_vs_accelerated_ssim": 0.9181941942476417,
+    "vanilla_vs_accelerated_visual_review": "same subject, composition, detail level, and overall quality; minor line/highlight placement drift; visual-fast parity, not strict identity"
+  },
+  "artifacts": [
+    "models/apple_mps/benchmarks/phase4-hires-release-auto-firstuse-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-release-auto-cached-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-release-vanilla-disabled-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-release-vanilla-disabled-b2-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-release-accelerated-c2-20260904/"
+  ],
+  "decision": "Promote the stable Torch 2.14, guarded BF16 SwinIR, persistent compiled SwinIR, and GPU compositor routes as automatic behavior while the add-on is enabled. Disabling the add-on and restarting restores Forge's original runtime."
+}

@@ -79,6 +79,7 @@ def forge_adapter_fingerprint() -> dict[str, Any]:
 
 def extension_runtime_fingerprint() -> dict[str, str]:
     files = (
+        EXTENSION_ROOT / "early_bootstrap.py",
         EXTENSION_ROOT / "preload.py",
         EXTENSION_ROOT / "forge_apple_accelerator/provider.py",
         EXTENSION_ROOT / "forge_apple_accelerator/stock_adapter.py",
@@ -87,6 +88,7 @@ def extension_runtime_fingerprint() -> dict[str, str]:
         EXTENSION_ROOT / "forge_apple_accelerator/runtime/mpsgraph_linear.py",
         EXTENSION_ROOT / "forge_apple_accelerator/runtime/anima_compat.py",
         EXTENSION_ROOT / "forge_apple_accelerator/runtime/mlx_anima_denoiser.py",
+        EXTENSION_ROOT / "forge_apple_accelerator/runtime/swinir_bf16.py",
     )
     return {
         str(path.relative_to(EXTENSION_ROOT)): sha256_file(path)
