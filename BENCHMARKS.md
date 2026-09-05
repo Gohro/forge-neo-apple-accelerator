@@ -108,6 +108,37 @@ Public release record:
 
 - [`evidence/hires-release-matrix-20260904.json`](evidence/hires-release-matrix-20260904.json)
 
+### Exact 25+25 user-workload confirmation
+
+The user's observed shorter pause before the second progress bar was replayed
+from the exact saved PNG metadata: 1024→1536, 25+25 Euler a steps, denoising
+strength 0.3, seed 84553563, GPU RNG, and `SwinIR_4x.pth`. The order was
+`accelerated → vanilla → vanilla → accelerated`, with fresh processes, at
+least 120 seconds of cooldown, and nominal starts.
+
+| Measurement | Add-on disabled median | Add-on enabled median | Improvement |
+| --- | ---: | ---: | ---: |
+| Complete request | 241.19s | 195.17s | **19.1% less / 1.24×** |
+| Hi-Res start → second sampler | 42.75s | 15.10s | **64.7% less / 2.83×** |
+| SwinIR full-model compute | 38.28s | 12.82s | **66.5% less / 2.99×** |
+| Complete resize loop | 38.90s | 13.80s | **64.5% less / 2.82×** |
+| Hi-Res VAE encode | 3.76s | 1.22s | **67.6% less** |
+| Second sampler | 143.08s | 133.31s | **6.8% less** |
+
+Both repeats were pixel-exact within each route. The user's original UI image
+and the instrumented accelerated replay were visually indistinguishable (SSIM
+0.99509). Cross-runtime GPU-RNG images are not a valid parity comparison
+because Torch 2.12 and 2.14 use different MPS RNG streams; the CPU-RNG release
+matrix above remains the cross-runtime visual gate.
+
+The profiler also proves why no terminal tile progress appeared. On the 48 GB
+machine, tile 768 and a 1024 source produce four planned tiles; Forge's planner
+selects one full-model MPS call when the count is four or fewer. Neither the
+CPU tile loop nor the GPU tile loop executes. Lower-memory Macs retain the
+conservative tiled path.
+
+- [`evidence/hires-user-workload-25x25-20260904.json`](evidence/hires-user-workload-25x25-20260904.json)
+
 ## Hi-Res investigation details
 
 Accepted 1024→1536 stage allocation:

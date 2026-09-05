@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Replayed the exact user-observed 1024→1536, 25+25-step Hi-Res workload in a
+  cooled counterbalanced matrix. Complete-request median fell
+  `241.19s → 195.17s`, while the interval from Hi-Res start to the second
+  sampler fell `42.75s → 15.10s` and SwinIR fell `38.28s → 12.82s`.
+- Documented that the 48 GB full-image SwinIR path intentionally shows no tile
+  progress bar; lower-memory hardware retains tiling for memory safety.
+
 ## 0.2.0 - 2026-09-04
 
 - Added a guarded BF16 compatibility route for the qualified

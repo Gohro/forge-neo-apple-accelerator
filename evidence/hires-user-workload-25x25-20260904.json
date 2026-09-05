@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-04",
+  "purpose": "Reproduce the user's observed short Hi-Res transition and separate every major stage.",
+  "workload": {
+    "checkpoint_family": "Anima",
+    "checkpoint": "novaCartoonAM_v10.safetensors",
+    "base_size": [1024, 1024],
+    "hires_size": [1536, 1536],
+    "base_steps": 25,
+    "hires_steps": 25,
+    "upscaler": "SwinIR_4x.pth",
+    "denoising_strength": 0.3,
+    "sampler": "Euler a",
+    "scheduler": "Normal",
+    "cfg": 4.0,
+    "shift": 3.0,
+    "seed": 84553563,
+    "randn_source": "GPU",
+    "prompt_source": "exact metadata from the user's saved base and Hi-Res PNGs"
+  },
+  "protocol": {
+    "fresh_process_per_sample": true,
+    "minimum_cooldown_seconds": 120,
+    "required_start_thermal_state": "nominal",
+    "order": [
+      "accelerated-auto",
+      "vanilla-disabled",
+      "vanilla-disabled",
+      "accelerated-auto"
+    ],
+    "manual_route_environment_overrides": false,
+    "profile_timers_synchronize_mps": true,
+    "note": "All runs started nominal and ended fair. The wide same-route timing spread is retained rather than filtered."
+  },
+  "results": {
+    "complete_request": {
+      "vanilla_samples_seconds": [219.5988332919951, 262.7806413330036],
+      "vanilla_median_seconds": 241.18973731249935,
+      "accelerated_samples_seconds": [189.0617664579986, 201.2876348330028],
+      "accelerated_median_seconds": 195.1747006455007,
+      "seconds_saved": 46.01503666699864,
+      "reduction_fraction": 0.19078355978048478,
+      "speedup": 1.2357633264701482
+    },
+    "time_from_hr_pass_start_to_second_sampler": {
+      "vanilla_samples_seconds": [39.484240770339966, 46.01160907745361],
+      "vanilla_median_seconds": 42.74792492389679,
+      "accelerated_samples_seconds": [14.869448184967041, 15.336736917495728],
+      "accelerated_median_seconds": 15.103092551231384,
+      "seconds_saved": 27.644832372665405,
+      "reduction_fraction": 0.6466941359581992,
+      "speedup": 2.830408724497386
+    },
+    "swinir_full_model": {
+      "vanilla_samples_seconds": [35.281559707997076, 41.27710737500456],
+      "vanilla_median_seconds": 38.27933354150082,
+      "accelerated_samples_seconds": [12.6679928750018, 12.973117708002974],
+      "accelerated_median_seconds": 12.820555291502387,
+      "seconds_saved": 25.45877824999843,
+      "reduction_fraction": 0.6650789314917699,
+      "speedup": 2.985778125138839
+    },
+    "complete_resize_loop": {
+      "vanilla_median_seconds": 38.90174318699792,
+      "accelerated_median_seconds": 13.797307979501056,
+      "reduction_fraction": 0.6453293130547293,
+      "speedup": 2.8195169119073835
+    },
+    "first_pass_decode": {
+      "vanilla_median_seconds": 2.4162552499983576,
+      "accelerated_median_seconds": 0.690704728498531,
+      "reduction_fraction": 0.7141424820498578
+    },
+    "hires_vae_encode": {
+      "vanilla_median_seconds": 3.763663292000274,
+      "accelerated_median_seconds": 1.2202738334999594,
+      "reduction_fraction": 0.6757749727257295
+    },
+    "second_sampler": {
+      "vanilla_median_seconds": 143.08322135400158,
+      "accelerated_median_seconds": 133.30969960450238,
+      "reduction_fraction": 0.06830655374551967
+    },
+    "final_decode": {
+      "vanilla_median_seconds": 5.943532916997356,
+      "accelerated_median_seconds": 1.6965104169976257,
+      "reduction_fraction": 0.7145619548693112
+    },
+    "denoiser_calls": {
+      "base_vanilla_median_seconds": 44.085707687496324,
+      "base_accelerated_median_seconds": 41.23567997750433,
+      "hires_vanilla_median_seconds": 142.98209083401161,
+      "hires_accelerated_median_seconds": 133.19537145700815
+    },
+    "peak_mps_driver_allocation": {
+      "vanilla_bytes": 30834491392,
+      "accelerated_bytes": 21025718272,
+      "reduction_fraction": 0.31811042365838677
+    }
+  },
+  "execution_path": {
+    "configured_tile": 768,
+    "source_size": [1024, 1024],
+    "planned_tiles": 4,
+    "planner_rule": "planned tile count <= 4 selects one full-model MPS call",
+    "cpu_tile_loop_executed": false,
+    "gpu_tile_loop_executed": false,
+    "terminal_effect": "No tile progress bar is expected on the selected full-model path."
+  },
+  "visual_evidence": {
+    "accelerated_repeats_pixel_exact": true,
+    "vanilla_repeats_pixel_exact": true,
+    "user_ui_image_vs_instrumented_accelerated_replay_ssim": 0.9950944505111009,
+    "user_ui_image_vs_replay_review": "visually indistinguishable",
+    "cross_runtime_gpu_rng_gate": "not valid: Torch 2.12 and 2.14 use different MPS RNG streams; use the published CPU-RNG matrix for cross-runtime parity"
+  },
+  "local_artifacts": [
+    "models/apple_mps/benchmarks/phase4-hires-user-repro-accelerated-b-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-user-repro-vanilla-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-user-repro-vanilla-b2-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-user-repro-accelerated-c2-20260904/",
+    "models/apple_mps/benchmarks/phase4-hires-user-repro-comparison-20260904/"
+  ]
+}
